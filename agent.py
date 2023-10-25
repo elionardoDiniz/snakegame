@@ -1,6 +1,8 @@
 import torch
 import random
 import numpy as np
+import json
+from os.path import exists
 from snake import SnakeGame, Point, Direction
 from model import Linear_QNet, QTrainer
 from collections import deque
@@ -16,9 +18,13 @@ class Agent:
         self.gamma = 0.9
         self.epsilon = 0
         self.memory = deque(maxlen=MAX_MEMORY)
-        self.model = Linear_QNet(11, 128, 3)
-        self.trainer = QTrainer(self.model, LR, gamma=self.gamma)
-    
+        self.model = Linear_QNet(11, 256, 3)
+        self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
+        if exists(r'./model/model.pth'):
+            self.model.load_state_dict(torch.load(r'./model/model.pth'))
+            self.model.eval()
+            print('Model loaded')
+
     def get_state(self, game: SnakeGame):
         dir_up = game.direction == Direction.UP
         dir_down = game.direction == Direction.DOWN
@@ -96,6 +102,12 @@ def train():
     record = 0
     agent = Agent()
     game = SnakeGame()
+    if exists(r'./model/infos.json'):
+        with open(r'./model/infos.json') as info:
+            infos = json.load(info)
+            record = infos['Record']
+            agent.n_games = infos['Games']
+        
     while True:
         old_state = agent.get_state(game)
         final_move = agent.get_action(old_state)
@@ -108,7 +120,6 @@ def train():
             game.reset()
             agent.n_games += 1
             agent.train_long_memory()
-            print(f'Game: {agent.n_games}, Score: {score}, Record: {record}')
             plot_scores.append(score)
             total_score += score
             mean_score = total_score / agent.n_games
@@ -118,6 +129,14 @@ def train():
             if score > record:
                 record = score
                 agent.model.save()
+            
+            print(f'Game: {agent.n_games}, Score: {score}, Record: {record}')
+            infos = {
+                'Record': record,
+                'Games': agent.n_games
+            }
+            with open('./model/infos.json', 'w') as info:
+                json.dump(infos, info, indent = 4)
 
 if __name__ == '__main__':
     train()
