@@ -1,5 +1,6 @@
 import pygame
 import random
+import numpy as np
 from enum import Enum
 from collections import namedtuple
 
@@ -110,9 +111,18 @@ class SnakeGame:
                 quit()
             elif event.type == pygame.KEYDOWN and event.key in directions:
                 self.direction = directions[event.key]
+    
+    def _apply_action(self, action):
+        clockwise = [Direction.RIGHT, Direction.DOWN, Direction.LEFT, Direction.UP]
+        idx = clockwise.index(self.direction)
+        if np.array_equal(action, [1, 0, 0]):
+            self.direction = clockwise[idx]
+        if np.array_equal(action, [0, 1, 0]):
+            self.direction = clockwise[(idx + 1) % 4]
+        if np.array_equal(action, [0, 0, 1]):
+            self.direction = clockwise[(idx - 1) % 4]
 
 if __name__ == '__main__':
-    pygame.event.get()
     game = SnakeGame()
     
     while True:
