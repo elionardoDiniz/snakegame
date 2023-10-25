@@ -22,7 +22,7 @@ BLUE2 = (0, 100, 255)
 BLACK = (0, 0, 0)
 
 BLOCK_SIZE = 20
-SPEED = 20
+SPEED = 200
 
 class SnakeGame:
     
@@ -45,6 +45,7 @@ class SnakeGame:
                         Point(self.head.x - BLOCK_SIZE, self.head.y),
                         Point(self.head.x - (2 * BLOCK_SIZE), self.head.y)]
         self._place_food()
+        self.frame_iterations = 0
 
     def _place_food(self):
         x = random.randint(0, (self.w - BLOCK_SIZE) // BLOCK_SIZE) * BLOCK_SIZE
@@ -55,13 +56,14 @@ class SnakeGame:
 
     def play_step(self):
         reward = 0
+        self.frame_iterations += 1
         if __name__ == '__main__':
             self._handle_input()
         self._move(self.direction)
         self.snake.insert(0, self.head)
         
         game_over = False
-        if self._is_collision():
+        if self._is_collision() or self.frame_iterations > 60 * len(self.snake):
             game_over = True
             reward -= 10
             return reward, game_over, self.score
@@ -76,8 +78,10 @@ class SnakeGame:
         self.clock.tick(SPEED)
         return reward, game_over, self.score
     
-    def _is_collision(self):
-        if self.head.x > self.w - BLOCK_SIZE or self.head.x < 0 or self.head.y > self.h - BLOCK_SIZE or self.head.y < 0 or self.head in self.snake[1:]:
+    def _is_collision(self, pt = None):
+        if pt is None:
+            pt = self.head
+        if pt.x > self.w - BLOCK_SIZE or pt.x < 0 or pt.y > self.h - BLOCK_SIZE or pt.y < 0 or pt in self.snake[1:]:
             return True
         return False
     
@@ -119,6 +123,11 @@ class SnakeGame:
                 self.direction = directions[event.key]
     
     def _apply_action(self, action):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+    
         clockwise = [Direction.RIGHT, Direction.DOWN, Direction.LEFT, Direction.UP]
         idx = clockwise.index(self.direction)
         if np.array_equal(action, [1, 0, 0]):
