@@ -6,19 +6,109 @@ from collections import deque
 
 MAX_MEMORY = 100_000
 BATCH_SIZE = 1_000
+LR = 0.001
 
 class Agent:
     def __init__(self):
-        self.memory = deque(..., maxlen=MAX_MEMORY)
+        self.n_games = 0
+        self.gamma = 0
+        self.epsilon = 0
+        self.memory = deque(maxlen=MAX_MEMORY)
+        self.model = None
+        self.trainer = None
+    
+    def get_state(self, game: SnakeGame):
+        dir_up = game.direction == Direction.UP
+        dir_down = game.direction == Direction.DOWN
+        dir_left = game.direction == Direction.LEFT
+        dir_right = game.direction == Direction.RIGHT
+
+        head = game.snake[0]
+        pt_up = Point(head.x, head.y - 20)
+        pt_down = Point(head.x, head.y + 20)
+        pt_left = Point(head.x - 20, head.y)
+        pt_right = Point(head.x + 20, head.y)
+        
+        state = [
+            (dir_up and game._is_collision(pt_up)) or
+            (dir_down and game._is_collision(pt_down)) or
+            (dir_left and game._is_collision(pt_left)) or
+            (dir_right and game._is_collision(pt_right)),
+            
+            (dir_up and game._is_collision(pt_right)) or
+            (dir_down and game._is_collision(pt_left)) or
+            (dir_left and game._is_collision(pt_up)) or
+            (dir_right and game._is_collision(pt_down)),
+            
+            (dir_up and game._is_collision(pt_left)) or
+            (dir_down and game._is_collision(pt_right)) or
+            (dir_left and game._is_collision(pt_down)) or
+            (dir_right and game._is_collision(pt_up)),
+            
+            
+            dir_left,
+            dir_right,
+            dir_up,
+            dir_down,
+            
+            game.food.x < head.x,
+            game.food.x > head.x,
+            game.food.y < head.y,
+            game.food.y > head.y,
+        ]
+        
+        return np.array(state, dtype=int)
+    
+    def get_action(self, state):
+        self.epsilon = 80 - self.n_games
+        final_move = [0, 0, 0]
+        move = 0
+        if random.randint(0, 200) < self.epsilon:
+            move = random.randint(0, 2)
+        else:
+            state0 = torch.tensor(state, dtype=torch.float)
+            pred = self.model.predict(state0)
+            move = torch.argmax(pred).item()
+        final_move[move] = 1
+        return final_move
+    
+    def remember(self, state, action, reward, next_state, done):
+        self.memory.append((state, action, reward, next_state, done))
     
     def train_long_memory(self):
-        pass
+        if len(self.memory) > BATCH_SIZE:
+            mini_sample = random.sample(self.memory, BATCH_SIZE)
+        else:
+            mini_sample = self.memory
+        
+        states, actions, rewards, next_states, dones = zip(*mini_sample)
+        self.trainer.train_step(states, actions, rewards, next_states, dones)
     
-    def train_short_memory(self):
-        pass
+    def train_short_memory(self, state, action, reward, next_state, done):
+        self.trainer.train_step(state, action, reward, next_state, done)
 
 def train():
-    pass
+    plot_scores = []
+    plot_mean_scores = []
+    total_score = 0
+    record = 0
+    agent = Agent()
+    game = SnakeGame()
+    while True:
+        old_state = agent.get_state(game)
+        final_move = agent.get_action(old_state)
+        game._apply_action(final_move)
+        reward, done, score = game.play_step()
+        new_state = agent.get_state(game)
+        agent.train_short_memory(old_state, final_move, reward, new_state, done)
+        agent.remember(old_state, final_move, reward, new_state, done)
+        if done:
+            game.reset()
+            agent.n_games += 1
+            agent.train_long_memory()
+            if score > record:
+                record = score
+            print(f'Game: {agent.n_games}, Score: {score}, Record: {record}')
 
 if __name__ == '__main__':
     train()
