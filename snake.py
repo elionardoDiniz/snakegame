@@ -29,7 +29,6 @@ class SnakeGame:
         self.w = w
         self.h = h
         self.score = 0
-        self.food = Point(0, 0)
         
         # init display
         self.display = pygame.display.set_mode((self.w, self.h))
@@ -41,6 +40,7 @@ class SnakeGame:
         self.snake = [self.head, 
                         Point(self.head[0] - BLOCK_SIZE, self.head[1]),
                         Point(self.head[0] - (2 * BLOCK_SIZE), self.head[1])]
+        self._place_food()
 
     def _place_food(self):
         x = random.randint(0, (self.w - BLOCK_SIZE) // BLOCK_SIZE) * BLOCK_SIZE
@@ -50,18 +50,8 @@ class SnakeGame:
             self._place_food()
 
     def play_step(self):
-        clock_wise = [Direction.RIGHT, Direction.DOWN, Direction.LEFT, Direction.UP ]
-        idx = clock_wise.index(self.direction)
-        keys = {
-            pygame.K_LEFT: 1,
-            pygame.K_RIGHT: -1,
-        }
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                quit()
-            elif event.type == pygame.KEYDOWN and event.key in keys:
-                self.direction = clock_wise[(idx + keys[event.key]) % 4]
+        if __name__ == '__main__':
+            self._handle_input()
         self._move(self.direction)
         self.snake.insert(0, self.head)
         
@@ -80,7 +70,7 @@ class SnakeGame:
         return game_over, self.score
     
     def _is_collision(self):
-        if self.head[0] > self.w - BLOCK_SIZE or self.head[0] < 0 or self.head[1] > self.w - BLOCK_SIZE or self.head[1] < 0 or self.head in self.snake[1:]:
+        if self.head[0] > self.w - BLOCK_SIZE or self.head[0] < 0 or self.head[1] > self.h - BLOCK_SIZE or self.head[1] < 0 or self.head in self.snake[1:]:
             return True
         return False
     
@@ -106,7 +96,20 @@ class SnakeGame:
         self.display.blit(text, [0, 0])
         pygame.display.flip()
 
-
+    def _handle_input(self):
+        directions = {
+            pygame.K_LEFT: Direction.LEFT,
+            pygame.K_RIGHT: Direction.RIGHT,
+            pygame.K_UP: Direction.UP,
+            pygame.K_DOWN: Direction.DOWN,
+        }
+        for event in pygame.event.get():
+            
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            elif event.type == pygame.KEYDOWN and event.key in directions:
+                self.direction = directions[event.key]
 
 if __name__ == '__main__':
     pygame.event.get()
@@ -117,5 +120,5 @@ if __name__ == '__main__':
         game_over, score = game.play_step()
         if game_over == True:
             break
-    print('Final Score')
+    print(f'Final Score: {score}')
     pygame.quit()
